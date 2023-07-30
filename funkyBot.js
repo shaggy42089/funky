@@ -1,92 +1,38 @@
 import { GatewayIntentBits, Client } from 'discord.js'
 import { 
-	joinVoiceChannel, 
-	getVoiceConnections,
-	createAudioPlayer,
-	NoSubscriberBehavior,
-	createAudioResource,  
-	AudioPlayer,
-	AudioPlayerStatus
+	getVoiceConnections
 } from '@discordjs/voice'
 
 import { config } from './.config.js'
-import ytdl from 'ytdl-core'
-import { fetchQueue } from './funkyHelper.js'
-import AsyncLock from 'async-lock'
-
-const getInfo = ytdl.getInfo
+import { 
+	funkyPause,
+	funkyResume,
+	funkySkip,
+	funkyJoin,
+	funkyStatus,
+	funkyPlay,
+	funkyClear
+} from './funkyHelper.js'
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 
-let mapLock = new AsyncLock()
 let queueMap = new Map()
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
 });
 
-client.on('guildCreate', (guild) => {
+client.on('guildCreate', guild => {
     if(!config.guildWhitelist.includes(guild.id)) return guild.leave();
 });
 
 client.on('interactionCreate', async interaction => {
 	try {
-		if (!interaction.isCommand()) return;
+		if (!interaction.isCommand()) return false;
 
 		if (interaction.commandName === 'join') {
-			let chan = interaction.options.getChannel('channel') || interaction.member.voice.channel
-
-			if (!chan) {
-				await interaction.reply('no channel provided and you are not in a voice channel')
-				return;
-			} 
-
-			let conn = joinVoiceChannel({
-				channelId: chan.id,
-				guildId: interaction.guildId,
-				selfDeaf: false,
-				selfMute: false,
-				adapterCreator: interaction.guild.voiceAdapterCreator
-			})
-
-			let player = createAudioPlayer({
-				behaviors: {
-					noSubscriber: NoSubscriberBehavior.Pause,
-				},
-			});
-
-			let queueLock = new AsyncLock()
-
-			let queue = {
-				player: player,
-				channel: chan,
-				lock: queueLock,
-				songs : [],
-				volume : 5,
-				playing : false
-			}
-
-			mapLock.acquire('queueMapLock', () => {
-				queueMap.set(interaction.guildId, queue)
-			})
-			
-			player.on(AudioPlayerStatus.Idle, () => {
-				queue.lock.acquire('queueLock', () => {
-					queue.songs.shift();
-					if (!queue.songs.length) {
-						queue.playing = false;
-						return;
-					} else {
-						const video = ytdl(songs[0].url,{ filter: 'audioonly' });
-						const res = createAudioResource(video)
-						queue.player.play(res);
-					}
-				})
-			})
-
-			conn.subscribe(player)			
-
-			await interaction.reply('Here I am!')
+			await interaction.deferReply();
+			await funkyJoin(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'leave') {
@@ -105,89 +51,27 @@ client.on('interactionCreate', async interaction => {
 		}
 
 		if (interaction.commandName === 'play') {
-			await interaction.deferReply()
-
-			await fetchQueue(interaction, queueMap, async (queue) => {
-				let songOption = interaction.options.getString('song')
-				let songInfos = await getInfo(songOption)
-
-				let song = {
-					title: songInfos.videoDetails.title,
-					url: songInfos.videoDetails.video_url,
-				}
-
-				queue.lock.acquire('queueLock', async () => {
-					queue.songs.push(song)
-				
-					if (!queue.playing) {
-						queue.playing = true;
-						try {
-							const video = ytdl(song.url,{ filter: 'audioonly' });
-							const res = createAudioResource(video)
-							queue.player.play(res);
-						} catch (e) {
-							await interaction.editReply(`Something went wrong: ${e}`);
-							return;
-						}
-					}
-				})
-				
-				await interaction.editReply(song.title + ' is now playing')
-			})
+			await funkyPlay(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'status') { 
-			await fetchQueue(interaction, queueMap, async (queue) => {
-				await interaction.reply('currently ' + (queue.playing ? ('playing ' + queue.songs[0].title) : 'not '))
-			});
+			await funkyStatus(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'clear') {
-			await fetchQueue(interaction, queueMap, async (queue) => {
-				queue.player.stop()
-				queue.playing = false;
-				queue.songs = []
-				await interaction.reply('Queue has been cleared')
-			});
+			await funkyClear(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'skip') {
-			await fetchQueue(interaction, queueMap, async (queue) => {
-				queue.lock.acquire('queueLock', async () => {
-					if (!queue.songs.length) {
-						await interaction.reply('Nothing to skip bud !')
-						return;	
-					}
-
-					queue.songs.shift()
-					if (queue.songs.length) {
-						const video = ytdl(queue.songs[0].url,{ filter: 'audioonly' });
-						const res = createAudioResource(video)
-						queue.player.play(res)
-					}
-					await interaction.reply('skipped !')
-				})
-			})
+			await funkySkip(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'pause') {
-			await fetchQueue(interaction, queueMap, async () => {
-				queue.player.pause()
-				queue.playing = false;
-				await interaction.reply('Queue has been paused')
-			})
-
-			await interaction.reply('There is no queue to pause')
+			await funkyPause(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'resume') {
-			await fetchQueue(interaction, queueMap, async (queue) => {
-				queue.player.unpause()
-				queue.playing = true;
-				await interaction.reply('Queue has been resumed')
-			})
-
-			await interaction.reply('There is no queue to resume')
+			await funkyResume(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'exit') {
@@ -202,6 +86,7 @@ client.on('interactionCreate', async interaction => {
 
 			await interaction.reply('bye bye')
 			client.destroy()
+			exit ();
 		}
 
 	} catch (err) {
