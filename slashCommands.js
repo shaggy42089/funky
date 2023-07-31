@@ -6,7 +6,7 @@
 
 import { ChannelType, REST, Routes } from 'discord.js';
 import  { SlashCommandBuilder } from '@discordjs/builders';
-import { config } from './config.js'
+import { config } from './.config.js'
 
 const commands = [
     new SlashCommandBuilder()
@@ -18,9 +18,7 @@ const commands = [
           .setRequired(true)),
           
     // todo
-    new SlashCommandBuilder().setName('skip').setDescription('skips the current song'),
-    new SlashCommandBuilder().setName('list').setDescription('lists all queued songs'),
-    
+    new SlashCommandBuilder().setName('skip').setDescription('skips the current song'),    
     new SlashCommandBuilder().setName('clear').setDescription('clears the queue'),
     new SlashCommandBuilder().setName('status').setDescription('show queue status'),
 
