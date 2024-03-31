@@ -17,7 +17,6 @@ const commands = [
           .setDescription('The song you are looking for, must be a yt link')
           .setRequired(true)),
           
-    // todo
     new SlashCommandBuilder().setName('skip').setDescription('skips the current song'),    
     new SlashCommandBuilder().setName('clear').setDescription('clears the queue'),
     new SlashCommandBuilder().setName('status').setDescription('show queue status'),

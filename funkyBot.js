@@ -23,7 +23,9 @@ client.on('ready', () => {
 });
 
 client.on('guildCreate', guild => {
-    if(!config.guildWhitelist.includes(guild.id)) return guild.leave();
+    if((config.enableWhitelist &&
+		!config.guildWhitelist.includes(guild.id)) ||
+		config.guildBlackList.includes(guild.id)) return guild.leave();
 });
 
 client.on('interactionCreate', async interaction => {
@@ -31,7 +33,6 @@ client.on('interactionCreate', async interaction => {
 		if (!interaction.isCommand()) return false;
 
 		if (interaction.commandName === 'join') {
-			await interaction.deferReply();
 			await funkyJoin(interaction, queueMap);
 		}
 
@@ -86,7 +87,7 @@ client.on('interactionCreate', async interaction => {
 
 			await interaction.reply('bye bye')
 			client.destroy()
-			exit ();
+			process.exit();
 		}
 
 	} catch (err) {

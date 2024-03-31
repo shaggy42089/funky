@@ -148,6 +148,8 @@ export async function playNextSong(queue) {
 }
 
 export async function funkyJoin(interaction, queueMap) {
+    await interaction.deferReply();
+    
     if (queueMap.get(interaction.guildId)) {
         await interaction.editReply('I am already here !');
         return true;
@@ -220,31 +222,41 @@ export async function funkyPlay(interaction, queueMap) {
 
         if (queue) {
             let songOption = interaction.options.getString('song')
-            let songInfos = await getInfo(songOption)
-
-            let song = {
-                title: songInfos.videoDetails.title,
-                url: songInfos.videoDetails.video_url,
+            if (!songOption.startsWith('https://www.youtube.com')) {
+                await interaction.editReply(`your song must be a valid link to a youtube video`);
+                return;
             }
 
-            queue.lock.acquire('queueLock', async () => {
-                queue.songs.push(song)
-            
-                if (!queue.playing) {
-                    queue.playing = true;
-                    try {
-                        const video = ytdl(song.url,{ filter: 'audioonly' });
-                        const res = createAudioResource(video)
-                        queue.player.play(res);
-                    } catch (e) {
-                        await interaction.editReply(`Something went wrong: ${e}`);
-                        return;
-                    }
+            try {
+                let songInfos = await getInfo(songOption)
+                let song = {
+                    title: songInfos.videoDetails.title,
+                    url: songInfos.videoDetails.video_url,
                 }
-            })
+                queue.lock.acquire('queueLock', async () => {
+                    queue.songs.push(song)
+                
+                    if (!queue.playing) {
+                        queue.playing = true;
+                        try {
+                            const video = ytdl(song.url,{ filter: 'audioonly' });
+                            const res = createAudioResource(video)
+                            queue.player.play(res);
+                        } catch (e) {
+                            await interaction.editReply(`Something went wrong: ${e}`);
+                            return;
+                        }
+                    }
+                })
+                await interaction.editReply(song.title + ' has been added to queue')
+                return true;
+            } catch (e) {
+                await interaction.editReply(`Something went wrong: ${e}`);
+                return;
+            }
+
+
             
-            await interaction.editReply(song.title + ' has been added to queue')
-            return true;
         }
 
         return false;
