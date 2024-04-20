@@ -5,9 +5,22 @@ import {
 	createAudioResource,  
 	AudioPlayerStatus
 } from '@discordjs/voice'
+import { config } from './.config.js'
+
 
 import AsyncLock from 'async-lock'
 import ytdl from 'ytdl-core'
+
+import google from 'googleapis';
+
+let youtube = false;
+if (config.googleApiKey)  {
+    youtube = google.google.youtube({
+        version: 'v3',
+        auth: config.googleApiKey,
+    });
+}
+
 let mapLock = new AsyncLock()
 
 const getInfo = ytdl.getInfo
@@ -222,9 +235,19 @@ export async function funkyPlay(interaction, queueMap) {
 
         if (queue) {
             let songOption = interaction.options.getString('song')
-            if (!songOption.startsWith('https://www.youtube.com')) {
+            if (!songOption.startsWith('https://www.youtube.com') && !youtube) {
                 await interaction.editReply(`your song must be a valid link to a youtube video`);
-                return;
+                return; 
+            } else {
+                const response = await youtube.search.list({
+                    part: 'snippet',
+                    q: songOption,
+                    type: 'video',
+                });
+
+                const videos = response.data.items;
+                const videoUrls = videos.map(video => `https://www.youtube.com/watch?v=${video.id.videoId}`);
+                songOption = videoUrls[0];
             }
 
             try {
