@@ -238,7 +238,7 @@ export async function funkyPlay(interaction, queueMap) {
             if (!songOption.startsWith('https://www.youtube.com') && !youtube) {
                 await interaction.editReply(`your song must be a valid link to a youtube video`);
                 return; 
-            } else {
+            } else if (!songOption.startsWith('https://www.youtube.com')) {
                 const response = await youtube.search.list({
                     part: 'snippet',
                     q: songOption,
