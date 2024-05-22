@@ -11,7 +11,8 @@ import {
 	funkyJoin,
 	funkyStatus,
 	funkyPlay,
-	funkyClear
+	funkyClear,
+	funkySay
 } from './funkyHelper.js'
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
@@ -73,6 +74,10 @@ client.on('interactionCreate', async interaction => {
 
 		if (interaction.commandName === 'resume') {
 			await funkyResume(interaction, queueMap);
+		}
+
+		if (interaction.commandName === 'say') {
+			await funkySay(interaction, queueMap);
 		}
 
 		if (interaction.commandName === 'exit') {

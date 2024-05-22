@@ -14,7 +14,7 @@ const commands = [
       .setDescription('play a song or adds it to the list')
       .addStringOption((option) => option
           .setName('song')
-          .setDescription('The song you are looking for, must be a yt link')
+          .setDescription('The song you are looking for, can be a yt link')
           .setRequired(true)),
           
     new SlashCommandBuilder().setName('skip').setDescription('skips the current song'),    
@@ -34,6 +34,13 @@ const commands = [
         .setDescription('channel to join, default is the one you\'re in')
 				.setRequired(false)
         .addChannelTypes(ChannelType.GuildVoice)),
+    new SlashCommandBuilder()
+    .setName('say')
+    .setDescription('make the bot talk')
+    .addStringOption((option) => option
+        .setName('text')
+        .setRequired(true)
+        .setDescription('text to say')),
 ]
 .map(command => command.toJSON());
 

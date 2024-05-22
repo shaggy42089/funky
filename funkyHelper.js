@@ -3,9 +3,14 @@ import {
 	createAudioPlayer,
 	NoSubscriberBehavior,
 	createAudioResource,  
-	AudioPlayerStatus
+	AudioPlayerStatus,
+    VoiceConnectionStatus,
+    entersState,
 } from '@discordjs/voice'
 import { config } from './.config.js'
+
+import { Readable } from 'stream';
+import gTTS from 'gtts';
 
 
 import AsyncLock from 'async-lock'
@@ -24,6 +29,7 @@ if (config.googleApiKey)  {
 let mapLock = new AsyncLock()
 
 const getInfo = ytdl.getInfo
+const tempFilePath = './tmp/hello.mp3';
 
 async function getQueue(interaction, queueMap) {
     try {
@@ -308,4 +314,40 @@ export async function funkyClear(interaction, queueMap) {
         await interaction.reply('An error has occured')
         return false;
     }
+}
+
+export async function funkySay(interaction, queueMap) {
+    await interaction.deferReply()
+
+    if (!queueMap.get(interaction.guildId)) {
+        await interaction.editReply('I\'m not in a voice channel yet');
+        return true;
+    }
+
+    const connection = queueMap.get(interaction.guildId).vc;
+
+     // Créer un flux de synthèse vocale
+    const text = interaction.options.getString('text')
+    const gtts = new gTTS(text, 'fr');
+    await new Promise((resolve, reject) => {
+        gtts.save(tempFilePath, function (err, result) {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+
+    // Créer une ressource audio à partir du flux
+    const resource = createAudioResource(tempFilePath);
+    
+    // Créer un lecteur audio
+    const player = createAudioPlayer();
+    player.play(resource);
+
+    // Abonner le lecteur audio à la connexion
+    connection.subscribe(player);
+
+    await interaction.editReply('Done');
+    // Attendre que la lecture soit terminée
+    await entersState(player, AudioPlayerStatus.Idle, 30e3);
+    return true;
 }
